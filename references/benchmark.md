@@ -25,15 +25,29 @@ Do not compare two runs on a working tree where the first run's solution remains
 Record:
 
 - profile and task identifier;
+- skill overhead / activation cost, including the `SKILL.md` size used;
+- whether `heavy-work.md` was loaded;
 - elapsed active work time;
 - usage/status delta available from Codex;
 - number of tool/command invocations if visible;
 - repeated file reads noticed;
+- approximate context or tool output avoided, when estimable;
 - broad vs focused test executions;
 - correctness result;
 - tests/checks passed;
 - reviewer/user acceptance;
-- regressions or rework required.
+- regressions or rework required;
+- reruns caused by excessive truncation.
+
+## Overhead hypothesis
+
+Measure rather than assume the skill's net value by profile:
+
+- LIGHT: activation may cost more context than the skill saves.
+- NORMAL: the skill may provide a net benefit.
+- HEAVY: the skill plus `heavy-work.md` may provide a larger benefit.
+
+Treat these as hypotheses to test on equivalent starting states, not expected results.
 
 ## Quality gate
 

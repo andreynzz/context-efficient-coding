@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_SUCCESS_LINES = 35
-DEFAULT_FAILURE_LINES = 140
+DEFAULT_FAILURE_HEAD_LINES = 35
+DEFAULT_FAILURE_TAIL_LINES = 90
 
 
 def log_path() -> Path:
@@ -31,7 +32,17 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--success-lines", type=int, default=DEFAULT_SUCCESS_LINES)
-    parser.add_argument("--failure-lines", type=int, default=DEFAULT_FAILURE_LINES)
+    parser.add_argument(
+        "--failure-head-lines", type=int, default=DEFAULT_FAILURE_HEAD_LINES
+    )
+    parser.add_argument(
+        "--failure-tail-lines",
+        "--failure-lines",
+        dest="failure_tail_lines",
+        type=int,
+        default=DEFAULT_FAILURE_TAIL_LINES,
+        help="failure tail size; --failure-lines is a compatibility alias",
+    )
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
 
@@ -40,7 +51,12 @@ def main() -> int:
         command = command[1:]
     if not command:
         parser.error("provide a command after --")
-    if args.success_lines < 0 or args.failure_lines < 1:
+    if (
+        args.success_lines < 0
+        or args.failure_head_lines < 0
+        or args.failure_tail_lines < 0
+        or args.failure_head_lines + args.failure_tail_lines < 1
+    ):
         parser.error("invalid preview line limits")
 
     started = time.monotonic()
@@ -67,22 +83,42 @@ def main() -> int:
         return 126
 
     elapsed = time.monotonic() - started
-    preview_count = args.success_lines if returncode == 0 else args.failure_lines
-    tail: deque[str] = deque(maxlen=preview_count)
+    tail_count = (
+        args.success_lines if returncode == 0 else args.failure_tail_lines
+    )
+    head_count = 0 if returncode == 0 else args.failure_head_lines
+    head: list[str] = []
+    tail: deque[str] = deque(maxlen=tail_count)
     line_count = 0
     with path.open(encoding="utf-8", errors="replace") as log:
         for line in log:
             line_count += 1
-            if preview_count:
-                tail.append(line.rstrip("\r\n"))
+            clean_line = line.rstrip("\r\n")
+            if len(head) < head_count:
+                head.append(clean_line)
+            if tail_count:
+                tail.append(clean_line)
 
     print(f"exit: {returncode}; duration: {elapsed:.1f}s; output-lines: {line_count}")
     print(f"full-log: {path}")
 
-    if tail:
-        if line_count > len(tail):
-            print(f"... showing last {len(tail)} of {line_count} lines ...")
-        print("\n".join(tail))
+    if returncode == 0:
+        if tail:
+            if line_count > len(tail):
+                print(f"... omitted {line_count - len(tail)} lines; showing tail ...")
+            print("\n".join(tail))
+    elif line_count:
+        tail_lines = list(tail)
+        if line_count <= len(head) + len(tail_lines):
+            overlap = len(head) + len(tail_lines) - line_count
+            print("\n".join(head + tail_lines[overlap:]))
+        else:
+            omitted = line_count - len(head) - len(tail_lines)
+            if head:
+                print("\n".join(head))
+            print(f"... omitted {omitted} lines ...")
+            if tail_lines:
+                print("\n".join(tail_lines))
 
     return returncode
 
