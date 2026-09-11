@@ -1,0 +1,6 @@
+interface:
+  display_name: "Context Efficient Coding"
+  short_description: "Reduce Codex context usage without sacrificing quality"
+  default_prompt: "Use $context-efficient-coding to complete this coding task with minimal unnecessary context and output while preserving correctness and verification."
+policy:
+  allow_implicit_invocation: true
